@@ -15,7 +15,7 @@ from scipy.stats import linregress
 import time
 
 center_point = int(640 / 2)  # where is the camera center w.r.t the frame?
-method = 1  # set to 2 for slope following instead.
+method = 2  # set to 2 for slope following instead.
 
 
 class LocalPlanningNode(object):
@@ -168,7 +168,7 @@ class LocalPlanningNode(object):
                     rospy.loginfo(
                         f"Average Depth Stop Sign Detection: {cv_image[pix[1], pix[0]]}"
                     )
-                    if cv_image[pix[1], pix[0]] <= 600 and cv_image[pix[1], pix[0]] != 0:
+                    if cv_image[pix[1], pix[0]] <= 600 and cv_image[pix[1], pix[0]] >= 500:
                         self.throttle = 0
                         if self.autonomous:
                             rospy.loginfo(f"Stopping at Stop Sign for 5 seconds")
@@ -178,6 +178,8 @@ class LocalPlanningNode(object):
                             self.throttle = 3
                             self.throttle_pub.publish(Float64(self.throttle))
                             rospy.loginfo(f"Continuing after stop sign")
+
+                            break
 
 
 if __name__ == "__main__":
