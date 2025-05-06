@@ -312,13 +312,15 @@ class QCar():
         # IO
         try:
             if True:
-                #Writes: Analog Channel, Num Analog Channel, PWM Channel, Num PWM Channel, Digital Channel, Num Digital Channel, Other Channel, Num Other Channel, Analog Buffer, PWM Buffer, Digital Buffer, Other Buffer           
+                #Writes: Analog Channel, Num Analog Channel, PWM Channel, Num PWM Channel, Digital Channel, Num Digital Channel, Other Channel, Num Other Channel, 
+                #        Analog Buffer, PWM Buffer, Digital Buffer, Other Buffer           
                 self.card.write(None, 0, self.write_pwm_channel_throttle, 1, None, 0, self.write_other_channels_str_LEDs, 9, 
                                 None, self.write_pwm_buffer_throttle, None, self.write_other_buffer_str_LEDs)
 
-                #Reads: Analog Channel, Num Analog Channel, PWM Channel, Num PWM Channel, Digital Channel, Num Digital Channel, Other Channel, Num Other Channel, Analog Buffer, PWM Buffer, Digital Buffer, Other Buffer
+                #Reads: Analog Channel, Num Analog Channel, PWM Channel, Num PWM Channel, Digital Channel, Num Digital Channel, Other Channel, Num Other Channel, 
+                #       Analog Buffer, PWM Buffer, Digital Buffer, Other Buffer
                 self.card.read(self.read_analog_channels_power, 2, self.read_encoder_channels_throttle, 1, None, 0, None, 0, 
-                                self.read_analog_buffer_power, self.read_encoder_buffer_throttle, None, None)
+                               self.read_analog_buffer_power, self.read_encoder_buffer_throttle, None, None)
 
         except HILError as h:
             print(h.get_error_message())

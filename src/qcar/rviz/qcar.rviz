@@ -74,7 +74,7 @@ Visualization Manager:
       Value: true
     - Class: rviz/Image
       Enabled: true
-      Image Topic: /camera/color/image_raw
+      Image Topic: /qcar/realsense_color
       Max Value: 1
       Median window: 5
       Min Value: 0

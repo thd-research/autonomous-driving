@@ -6,7 +6,9 @@ import roslib
 import rospy
 import numpy as np
 import cv2
-from qcar.q_essential import Camera3D
+# from qcar.q_essential import Camera3D
+from pal.utilities.vision import Camera3D
+
 
 from sensor_msgs.msg import Image
 from std_msgs.msg import String
@@ -20,7 +22,9 @@ class RGBDNode(object):
 		self.bridge = CvBridge()
 		
 		#Initialize CV sensors
-		rgbd = Camera3D(mode='RGB&DEPTH', frame_width_RGB=1280, frame_height_RGB=720)
+		rgbd = Camera3D(mode='RGB, Depth', 
+						frameWidthRGB=1280, 
+						frameHeightRGB=720)
 
 		#Get readings
 		while not rospy.is_shutdown():
@@ -28,8 +32,8 @@ class RGBDNode(object):
 			rgbd.read_depth(dataMode='m')
 			
 			# self.rate_pub.publish(msg)
-			self.process_color_data(self.rgbd_color_pub, rgbd.image_buffer_RGB)
-			self.process_depth_data(self.rgbd_depth_pub, rgbd.image_buffer_depth_m)
+			self.process_color_data(self.rgbd_color_pub, rgbd.imageBufferRGB)
+			self.process_depth_data(self.rgbd_depth_pub, rgbd.imageBufferDepthM)
 
 		rgbd.terminate()
 

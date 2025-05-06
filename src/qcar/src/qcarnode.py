@@ -4,8 +4,14 @@ from __future__ import division, print_function, absolute_import
 
 import rospy
 import numpy as np
-from qcar.product_QCar import QCar
+# from qcar.product_QCar import QCar
+from pal.products.qcar import QCar
+# from include.qcar.product_QCar import QCar
+
+
+# from qcar.q_interpretation import *
 from qcar.q_interpretation import *
+
 
 from std_msgs.msg import String, Float64
 from geometry_msgs.msg import Vector3Stamped
@@ -33,7 +39,14 @@ class QCarNode(object):
 			# Generate Commands
 			LEDs = np.array([0, 0, 0, 0, 0, 0, 1, 1])
 			self.command = np.array([self.throttle, self.steering])
-			current, batteryVoltage, encoderCounts = self.myCar.read_write_std(self.command, LEDs)     
+
+			# qcar.product_QCar
+			# current, batteryVoltage, encoderCounts = self.myCar.read_write_std(self.command, LEDs)     
+
+			# pal.products.qcar
+			self.myCar.read_write_std(self.throttle, self.steering, LEDs)     
+			encoderCounts = self.myCar.motorEncoder[0]
+			batteryVoltage = self.myCar.batteryVoltage
 			
 			battery_state = BatteryState()
 			battery_state.header.stamp = rospy.Time.now() 

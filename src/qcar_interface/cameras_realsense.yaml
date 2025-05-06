@@ -1,0 +1,4 @@
+realsense_camera_topic: /qcar/realsense_color
+front_camera_topic: /qcar/realsense_color
+is_simulation: false
+lane_detection_realsense: true

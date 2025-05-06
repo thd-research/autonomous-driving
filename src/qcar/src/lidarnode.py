@@ -6,7 +6,8 @@ import roslib
 import rospy
 import numpy as np
 import cv2
-from qcar.q_essential import LIDAR
+# from qcar.q_essential import LIDAR
+from pal.products.qcar import QCarLidar
 
 from sensor_msgs.msg import LaserScan
 from std_msgs.msg import String
@@ -17,7 +18,7 @@ class LIDARNode(object):
 		super().__init__()
 		self.lidar_pub = rospy.Publisher('/scan', LaserScan, queue_size=1000)
 		self.num_measurements = 720
-		self.lidar = LIDAR(num_measurements=self.num_measurements)
+		self.lidar = QCarLidar(num_measurements=self.num_measurements)
 		self.distances = np.zeros((self.num_measurements,1))
 		self.angles = np.zeros((self.num_measurements,1))
 		self.sampleTime = 1 / 30
