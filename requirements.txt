@@ -1,0 +1,8 @@
+scipy
+scikit-image
+pandas
+tqdm
+torch
+torch-vision
+seaborn
+
