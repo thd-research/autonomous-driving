@@ -5,17 +5,28 @@
   <param name="robot_description" command="$(find xacro)/xacro.py '$(find qcar_gazebo)/urdf/qcar_model.xacro'"/>
 
   <!-- send fake joint values -->
-  <!-- <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher" /> -->
+  <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher" />
 
   <!-- Combine joint values -->
-  <!-- <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher"/> -->
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher"/>
 
   <!-- Show in Rviz   -->
-  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find qcar)/rviz/qcar.rviz" required="true"/>
+  <!-- <node name="rviz" pkg="rviz" type="rviz" args="-d $(find qcar)/rviz/qcar.rviz" required="true"/> -->
 
-  <!-- <include file="$(find qcar_mapping)/launch/rtabmap.launch" />
-  <include file="$(find qcar_perception)/launch/object_detection.launch" /> -->
-  
+  <node name="qcar_node" pkg="qcar"
+          type="qcarnode.py" output="screen">
+      
+  </node>
+
+  <node name="csi_node" pkg="qcar"
+          type="csinode.py" output="screen">      
+  </node>
+
+
+  <node name="rgbd_node" pkg="qcar"
+          type="rgbdnode.py" output="screen">
+  </node>
+
   <node name="lane_detector" pkg="qcar_perception" type="lane_detection.py" output="screen">
   </node> 
 
@@ -40,5 +51,6 @@
 
   <node name="planning_node" pkg="qcar_planning" type="local_planner.py" output="screen">
   </node>
+
 
 </launch>
