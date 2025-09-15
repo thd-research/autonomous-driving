@@ -13,7 +13,7 @@ docker run  -ti --rm \
             -v $ROOT_DIR:/playground \
             --net=host \
             --privileged \
-            --cpuset-cpus "0-3" \
+            --cpuset-cpus "6-11" \
             --name autonomous-driving autonomous-driving-img
 
 cd $ROOT_DIR/.git && \

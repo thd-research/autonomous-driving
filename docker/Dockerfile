@@ -91,6 +91,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # # Required for non-glvnd setups.
 # ENV LD_LIBRARY_PATH /usr/lib/x86_64-linux-gnu:/usr/lib/i386-linux-gnu${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}:/usr/local/nvidia/lib:/usr/local/nvidia/lib64
 
+COPY requirements.txt /requirements.txt
+
+RUN pip install -r /requirements.txt
 
 # RUN echo 'export ROS_DOMAIN_ID=30 #TURTLEBOT3' >> ~/.bashrc                    
 RUN echo "source /opt/ros/noetic/setup.bash"  >> ~/.bashrc 

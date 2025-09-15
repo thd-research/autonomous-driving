@@ -40,11 +40,15 @@
 
 # :notebook_with_decorative_cover: Table of Contents
 
-- [About the Project](#star2-about-the-project)
-- [Getting Started](#toolbox-getting-started)
-- [Usage](#eyes-usage)
-- [Contact](#handshake-contact)
-- [License](#warning-license)
+- [:notebook\_with\_decorative\_cover: Table of Contents](#notebook_with_decorative_cover-table-of-contents)
+  - [:star2: About the Project](#star2-about-the-project)
+  - [:toolbox: Getting Started](#toolbox-getting-started)
+  - [Setup docker container](#setup-docker-container)
+    - [Simulation](#simulation)
+      - [Gazebo](#gazebo)
+      - [CARLA](#carla)
+  - [:handshake: Authors](#handshake-authors)
+  - [:warning: License](#warning-license)
 
 <!-- About the Project -->
 
@@ -65,7 +69,30 @@ The modules implemented in this project are:
 
 ## :toolbox: Getting Started
 
-This project is implemented using the Robotic Operating System (ROS). The root of this repository acts as the catkin workspace. ROS packages are found in `src/`. Please make sure you have ROS Noetic or Melodic installed before installing this repository, by following the official ROS installation <a href="https://wiki.ros.org/ROS/Installation">guide</a>.
+This project is implemented using the Robotic Operating System (ROS). All of the setups are prepared in Dockerfile, so every commands should be used inside docker container.
+
+## Setup docker container
+
+To setup and build docker container
+``` 
+cd docker
+bash install_docker.sh -n # (Re)install Docker
+bash build_docker.sh -n # Build Docker container:
+```
+
+To run docker container as a working space
+```
+bash run_docker.sh -n # Run Docker container
+```
+
+To open additional terminal and attach to the workspace
+```
+# Open a new terminal
+bash into_docker.sh
+```
+
+**Note**: It's preferably to use `-n` flag that enables Nvidia drivers support.
+
 
 Build the catkin workspace:
 
