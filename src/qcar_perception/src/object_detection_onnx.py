@@ -3,6 +3,7 @@
 import os
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
+os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
 
 import argparse
@@ -57,7 +58,7 @@ from utils.torch_utils import select_device, time_sync
 
 import onnxruntime as rt
 import onnx
-import torch
+import torch.nn.functional as F
 
 
 package = RosPack()
@@ -81,13 +82,13 @@ class Detector:
         log_str = "Subscribing to image topic: %s" % self.image_topic
         rospy.loginfo(log_str)
 
-        self.conf_thres = rospy.get_param('~confidence', 0.8)
+        self.conf_thres = float(rospy.get_param('~confidence', 0.8))
 
         # Load other parameters
-        self.device_name = 'cpu'
+        self.device_name = '0'
         self.device = select_device(self.device_name)
         self.gpu_id = rospy.get_param('~gpu_id', 0)
-        self.network_img_size = rospy.get_param('~img_size', 416)
+        self.network_img_size = rospy.get_param('~img_size', 640)
         self.publish_image = rospy.get_param('~publish_image')
         self.iou_thres = 0.8
         self.augment = True
@@ -98,6 +99,8 @@ class Detector:
         self.w = 0
         self.h = 0
 
+        print("self.network_img_size", self.network_img_size)
+
         # Second-stage classifier
         self.classify = False
 
@@ -105,7 +108,10 @@ class Detector:
         self.half = self.device.type != 'cpu'  # half precision only supported on CUDA
         
         ## ONNX model
-        self.sess = rt.InferenceSession(self.weights_path)
+        self.sess = rt.InferenceSession(self.weights_path, providers=[
+            # "TensorrtExecutionProvider", 
+            "CUDAExecutionProvider"
+            ])
         self.input_name = self.sess.get_inputs()[0].name
         self.label_name = self.sess.get_outputs()[0].name
 
@@ -130,10 +136,11 @@ class Detector:
         self.colors = [[random.randint(0, 255)
                         for _ in range(3)] for _ in self.names]
 
-        # Run inference
-        if self.device.type != 'cpu':
-            self.model(torch.zeros(1, 3, self.network_img_size, self.network_img_size).to(
-                self.device).type_as(next(self.model.parameters())))  # run once
+        # # Run inference
+        # if self.device.type != 'cpu':
+        #     # self.data_type = torch.FloatTensor
+        #     self.model(torch.zeros(1, 3, self.network_img_size, self.network_img_size).to(
+        #         self.device).type(dtype=torch.float))  # run once
 
         # Load CvBridge
         self.bridge = CvBridge()
@@ -169,7 +176,8 @@ class Detector:
         detection_results.header = data.header
         detection_results.image_header = data.header
         input_img = self.preprocess(self.cv_img)
-        input_img = Variable(input_img.type(torch.FloatTensor))
+        if self.device.type == 'cpu':
+            input_img = Variable(input_img.type(torch.FloatTensor))
 
         # Get detections from network
         # with torch.no_grad():
@@ -179,15 +187,8 @@ class Detector:
         #     detections = non_max_suppression(detections, self.conf_thres, self.iou_thres,
         #                                      classes=self.classes, agnostic=self.agnostic_nms)
     
-        detections = self.sess.run([self.label_name], {self.input_name: input_img.numpy()})[0]
+        detections = self.sess.run([self.label_name], {self.input_name: input_img.cpu().numpy()})[0]
         pred_onx = np.transpose(detections, (0, 2, 1))
-        
-        
-        # print("## detections:", torch.from_numpy(detections)[..., 4].max())
-        # self.conf_thres, self.iou_thres = 1e-7, 0.5
-        # detections = non_max_suppression(torch.from_numpy(detections), 1e-7, self.iou_thres,
-        #                                  classes=self.classes, agnostic=self.agnostic_nms)
-        # print("## detections:", len(detections), detections)
         
         
         boxes = []
@@ -210,7 +211,7 @@ class Detector:
                 class_ids.append(maxClassIndex)
 
         # Apply NMS (Non-maximum suppression)
-        result_boxes = cv2.dnn.NMSBoxes(boxes, scores, 0.25, 0.45, 0.5)
+        result_boxes = cv2.dnn.NMSBoxes(boxes, scores, self.conf_thres, 0.45, 0.5)
 
         detections = []
 
@@ -247,34 +248,7 @@ class Detector:
             # Append in overall detection message
             detection_results.bounding_boxes.append(detection_msg)
         
-        # # Parse detections
-        # if detections[0] is not None:
-        #     for detection in detections[0]:
-        #         # Get xmin, ymin, xmax, ymax, confidence and class
-        #         xmin, ymin, xmax, ymax, conf, det_class = detection
-        #         pad_x = max(self.h - self.w, 0) * \
-        #             (self.scale)
-        #         pad_y = max(self.w - self.h, 0) * \
-        #             (self.scale)
-        #         unpad_h = self.network_img_size-pad_y
-        #         unpad_w = self.network_img_size-pad_x
-        #         xmin_unpad = ((xmin-pad_x//2)/unpad_w)*self.w
-        #         xmax_unpad = ((xmax-xmin)/unpad_w)*self.w + xmin_unpad
-        #         ymin_unpad = ((ymin-pad_y//2)/unpad_h)*self.h
-        #         ymax_unpad = ((ymax-ymin)/unpad_h)*self.h + ymin_unpad
-
-        #         # Populate darknet message
-        #         detection_msg = BoundingBox()
-        #         detection_msg.xmin = int(xmin_unpad)
-        #         detection_msg.xmax = int(xmax_unpad)
-        #         detection_msg.ymin = int(ymin_unpad)
-        #         detection_msg.ymax = int(ymax_unpad)
-        #         detection_msg.probability = float(conf)
-        #         detection_msg.Class = self.names[int(det_class)]
-
-        #         # Append in overall detection message
-        #         detection_results.bounding_boxes.append(detection_msg)
-
+        print("detections:", detections)
         # Publish detection results
         self.pub_.publish(detection_results)
 
@@ -291,9 +265,6 @@ class Detector:
         if (height != self.h) or (width != self.w):
             self.h = height
             self.w = width
-
-            if self.w == 0:
-                a = 0
             # Determine image to be used
             self.padded_image = np.zeros(
                 (max(self.h, self.w), max(self.h, self.w), channels)).astype(float)
@@ -307,15 +278,15 @@ class Detector:
         else:
             self.padded_image[:, (self.h-self.w)//2: self.w +
                               (self.h-self.w)//2, :] = img
-        # Resize and normalize
-        input_img = resize(self.padded_image, (self.network_img_size, self.network_img_size, 3))/255.
 
-        # Channels-first
-        input_img = np.transpose(input_img, (2, 0, 1))
+        input_img = torch.from_numpy(self.padded_image).float().to(self.device)
+        input_img = input_img.permute(2, 0, 1)
+        input_img = input_img.expand([1, *input_img.shape])
+        # print("Shape of input_img", input_img.shape)
 
-        # As pytorch tensor
-        input_img = torch.from_numpy(input_img).float()
-        input_img = input_img[None]
+        input_img = F.interpolate(input_img, size=(self.network_img_size, self.network_img_size), mode='bilinear', align_corners=False) / 255.
+
+        input_img = input_img[0][None]
 
         return input_img
 
