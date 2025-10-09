@@ -121,6 +121,8 @@ class Detector:
         self.network_img_size = check_img_size(
             self.network_img_size, s=self.stride)  # check img_size
 
+        self.scale = 1
+
         # if self.half:
         #     self.model.half()  # to FP16
 
@@ -178,42 +180,100 @@ class Detector:
         #                                      classes=self.classes, agnostic=self.agnostic_nms)
     
         detections = self.sess.run([self.label_name], {self.input_name: input_img.numpy()})[0]
-        detections = np.transpose(detections, (0, 2, 1))
+        pred_onx = np.transpose(detections, (0, 2, 1))
         
         
-        print("## detections:", torch.from_numpy(detections)[..., 4].max())
-        self.conf_thres, self.iou_thres = 1e-7, 0.5
-        detections = non_max_suppression(torch.from_numpy(detections), 1e-7, self.iou_thres,
-                                         classes=self.classes, agnostic=self.agnostic_nms)
-        print("## detections:", len(detections), detections)
+        # print("## detections:", torch.from_numpy(detections)[..., 4].max())
+        # self.conf_thres, self.iou_thres = 1e-7, 0.5
+        # detections = non_max_suppression(torch.from_numpy(detections), 1e-7, self.iou_thres,
+        #                                  classes=self.classes, agnostic=self.agnostic_nms)
+        # print("## detections:", len(detections), detections)
         
-        # Parse detections
-        if detections[0] is not None:
-            for detection in detections[0]:
-                # Get xmin, ymin, xmax, ymax, confidence and class
-                xmin, ymin, xmax, ymax, conf, det_class = detection
-                pad_x = max(self.h - self.w, 0) * \
-                    (self.network_img_size/max(self.h, self.w))
-                pad_y = max(self.w - self.h, 0) * \
-                    (self.network_img_size/max(self.h, self.w))
-                unpad_h = self.network_img_size-pad_y
-                unpad_w = self.network_img_size-pad_x
-                xmin_unpad = ((xmin-pad_x//2)/unpad_w)*self.w
-                xmax_unpad = ((xmax-xmin)/unpad_w)*self.w + xmin_unpad
-                ymin_unpad = ((ymin-pad_y//2)/unpad_h)*self.h
-                ymax_unpad = ((ymax-ymin)/unpad_h)*self.h + ymin_unpad
+        
+        boxes = []
+        scores = []
+        class_ids = []
 
-                # Populate darknet message
-                detection_msg = BoundingBox()
-                detection_msg.xmin = int(xmin_unpad)
-                detection_msg.xmax = int(xmax_unpad)
-                detection_msg.ymin = int(ymin_unpad)
-                detection_msg.ymax = int(ymax_unpad)
-                detection_msg.probability = float(conf)
-                detection_msg.Class = self.names[int(det_class)]
+        # Iterate through output to collect bounding boxes, confidence scores, and class IDs
+        for i in range(pred_onx.shape[1]):
+            classes_scores = pred_onx[0][i][4:]
+            (minScore, maxScore, minClassLoc, (x, maxClassIndex)) = cv2.minMaxLoc(classes_scores)
+            if maxScore >= 0.25:
+                box = [
+                    pred_onx[0][i][0] - (0.5 * pred_onx[0][i][2]),  # x center - width/2 = left x
+                    pred_onx[0][i][1] - (0.5 * pred_onx[0][i][3]),  # y center - height/2 = top y
+                    pred_onx[0][i][2],  # width
+                    pred_onx[0][i][3],  # height
+                ]
+                boxes.append(box)
+                scores.append(maxScore)
+                class_ids.append(maxClassIndex)
 
-                # Append in overall detection message
-                detection_results.bounding_boxes.append(detection_msg)
+        # Apply NMS (Non-maximum suppression)
+        result_boxes = cv2.dnn.NMSBoxes(boxes, scores, 0.25, 0.45, 0.5)
+
+        detections = []
+
+        # Iterate through NMS results to draw bounding boxes and labels
+        for i in range(len(result_boxes)):
+            index = result_boxes[i]
+            box = boxes[index]
+
+            pad_x = max(self.h - self.w, 0) // 2
+            pad_y = max(self.w - self.h, 0) // 2
+
+            xmin = round(box[0] * self.scale - pad_x)
+            ymin = round(box[1] * self.scale - pad_y)
+            xmax = round((box[0] + box[2]) * self.scale- pad_x)
+            ymax = round((box[1] + box[3]) * self.scale- pad_y)
+
+            detection = {
+                "class_id": class_ids[index],
+                "class_name": self.names[class_ids[index]],
+                "confidence": scores[index],
+                "box": box,
+            }
+            detections.append(detection)
+
+            # Populate darknet message
+            detection_msg = BoundingBox()
+            detection_msg.xmin = int(xmin)
+            detection_msg.xmax = int(xmax)
+            detection_msg.ymin = int(ymin)
+            detection_msg.ymax = int(ymax)
+            detection_msg.probability = float(scores[index])
+            detection_msg.Class = self.names[class_ids[index]]
+
+            # Append in overall detection message
+            detection_results.bounding_boxes.append(detection_msg)
+        
+        # # Parse detections
+        # if detections[0] is not None:
+        #     for detection in detections[0]:
+        #         # Get xmin, ymin, xmax, ymax, confidence and class
+        #         xmin, ymin, xmax, ymax, conf, det_class = detection
+        #         pad_x = max(self.h - self.w, 0) * \
+        #             (self.scale)
+        #         pad_y = max(self.w - self.h, 0) * \
+        #             (self.scale)
+        #         unpad_h = self.network_img_size-pad_y
+        #         unpad_w = self.network_img_size-pad_x
+        #         xmin_unpad = ((xmin-pad_x//2)/unpad_w)*self.w
+        #         xmax_unpad = ((xmax-xmin)/unpad_w)*self.w + xmin_unpad
+        #         ymin_unpad = ((ymin-pad_y//2)/unpad_h)*self.h
+        #         ymax_unpad = ((ymax-ymin)/unpad_h)*self.h + ymin_unpad
+
+        #         # Populate darknet message
+        #         detection_msg = BoundingBox()
+        #         detection_msg.xmin = int(xmin_unpad)
+        #         detection_msg.xmax = int(xmax_unpad)
+        #         detection_msg.ymin = int(ymin_unpad)
+        #         detection_msg.ymax = int(ymax_unpad)
+        #         detection_msg.probability = float(conf)
+        #         detection_msg.Class = self.names[int(det_class)]
+
+        #         # Append in overall detection message
+        #         detection_results.bounding_boxes.append(detection_msg)
 
         # Publish detection results
         self.pub_.publish(detection_results)
@@ -231,9 +291,14 @@ class Detector:
         if (height != self.h) or (width != self.w):
             self.h = height
             self.w = width
+
+            if self.w == 0:
+                a = 0
             # Determine image to be used
             self.padded_image = np.zeros(
                 (max(self.h, self.w), max(self.h, self.w), channels)).astype(float)
+
+            self.scale = max(self.h, self.w)/self.network_img_size
 
         # Add padding
         if (self.w > self.h):
